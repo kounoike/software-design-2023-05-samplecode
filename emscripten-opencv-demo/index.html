@@ -1,0 +1,30 @@
+<html>
+
+<head>
+  <title>wasm opencv demo</title>
+</head>
+<video autoplay playsinline></video>
+<canvas width="640" height="480"></canvas>
+<script src="build/bin/opencv-demo.js"></script>
+<script>
+  const [width, height] = [640, 480]
+  Promise.all([navigator.mediaDevices.getUserMedia({ video: { width, height } }), createModule()]).
+    then(([stream, wasm]) => {
+      const video = document.querySelector('video')
+      const ctx = document.querySelector('canvas').getContext('2d')
+      const offset = wasm.getBuffer()
+      const frameFunc = () => {
+        ctx.drawImage(video, 0, 0)
+        const inputData = ctx.getImageData(0, 0, width, height)
+        wasm.HEAPU8.set(inputData.data, offset)
+        wasm.flip()
+        const outputData = new ImageData(new Uint8ClampedArray(wasm.HEAPU8.slice(offset, offset + width * height * 4)), width, height)
+        ctx.putImageData(outputData, 0, 0)
+        video.requestVideoFrameCallback(frameFunc)
+      }
+      video.srcObject = stream
+      video.requestVideoFrameCallback(frameFunc)
+    })
+</script>
+
+</html>
